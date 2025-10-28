@@ -1,12 +1,15 @@
 package com.trackfolio.gui;
 
+import com.trackfolio.db.RatingHistoryDAO;
 import com.trackfolio.db.SkillDAO;
+import com.trackfolio.model.RatingHistory;
 import com.trackfolio.model.Skill;
 import com.trackfolio.model.User;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.time.LocalDate;
 
 public class AddSkillFrame extends JFrame {
 
@@ -14,11 +17,14 @@ public class AddSkillFrame extends JFrame {
     private JTextField skillField;
     private JComboBox<String> levelComboBox;
     private JButton saveButton, backButton;
+    private JCheckBox isCodingCheck;
+    private JLabel levelLabel, ratingLabel;
+    private JTextField ratingField;
 
     public AddSkillFrame(User user) {
         this.loggedInUser = user;
         setTitle("Add Skill - Portfolio Skill Tracker");
-        setSize(500, 300);
+        setSize(500, 350);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         try {
@@ -55,12 +61,28 @@ public class AddSkillFrame extends JFrame {
 
         gbc.gridx = 0;
         gbc.gridy++;
-        JLabel levelLabel = new JLabel("Skill Level:");
+        isCodingCheck = new JCheckBox("Is Coding Skill?");
+        panel.add(isCodingCheck, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        levelLabel = new JLabel("Skill Level:");
         panel.add(levelLabel, gbc);
 
         gbc.gridx = 1;
         levelComboBox = new JComboBox<>(new String[]{"Beginner", "Intermediate", "Advanced"});
         panel.add(levelComboBox, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        ratingLabel = new JLabel("Rating:");
+        ratingLabel.setVisible(false);
+        panel.add(ratingLabel, gbc);
+
+        gbc.gridx = 1;
+        ratingField = new JTextField(20);
+        ratingField.setVisible(false);
+        panel.add(ratingField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy++;
@@ -73,25 +95,63 @@ public class AddSkillFrame extends JFrame {
         backButton.addActionListener(this::backToDashboard);
         panel.add(backButton, gbc);
 
+        isCodingCheck.addActionListener(e -> {
+            boolean isCoding = isCodingCheck.isSelected();
+            levelLabel.setVisible(!isCoding);
+            levelComboBox.setVisible(!isCoding);
+            ratingLabel.setVisible(isCoding);
+            ratingField.setVisible(isCoding);
+        });
+
         add(panel);
     }
 
     private void saveSkill(ActionEvent e) {
         try {
             String skillName = skillField.getText().trim();
-            String level = (String) levelComboBox.getSelectedItem();
 
             if (skillName.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Please enter a skill name.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
-            Skill skill = new Skill(loggedInUser.getUserId(), skillName, level);
+            boolean isCoding = isCodingCheck.isSelected();
+            String level = null;
+            Integer rating = null;
+
+            if (isCoding) {
+                String ratingText = ratingField.getText().trim();
+                if (ratingText.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Please enter a rating.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                try {
+                    rating = Integer.parseInt(ratingText);
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(this, "Invalid rating. Must be an integer.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } else {
+                level = (String) levelComboBox.getSelectedItem();
+            }
+
+            Skill skill = new Skill(loggedInUser.getUserId(), skillName, level, isCoding, rating);
             SkillDAO skillDAO = new SkillDAO();
-            boolean success = skillDAO.addSkill(skill);
-            if (success) {
+            int skillId = skillDAO.addSkill(skill);
+            if (skillId != -1) {
+                if (isCoding) {
+                    RatingHistoryDAO historyDAO = new RatingHistoryDAO();
+                    RatingHistory history = new RatingHistory(skillId, rating, LocalDate.now());
+                    historyDAO.addRatingHistory(history);
+                }
                 JOptionPane.showMessageDialog(this, "Skill added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                 skillField.setText("");
+                ratingField.setText("");
+                isCodingCheck.setSelected(false);
+                levelLabel.setVisible(true);
+                levelComboBox.setVisible(true);
+                ratingLabel.setVisible(false);
+                ratingField.setVisible(false);
                 System.out.println("Skill added to database: " + skill);
                 this.dispose();
             } else {

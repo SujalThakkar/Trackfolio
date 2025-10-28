@@ -34,7 +34,9 @@ public class DBConnection {
                 "skill_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "user_id INTEGER, " +
                 "skill_name TEXT NOT NULL, " +
-                "level TEXT NOT NULL, " +
+                "level TEXT, " +
+                "is_coding BOOLEAN DEFAULT 0, " +
+                "rating INTEGER, " +
                 "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE)";
         String createCertificatesTable = "CREATE TABLE IF NOT EXISTS certificates (" +
                 "cert_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -44,10 +46,17 @@ public class DBConnection {
                 "issue_date TEXT NOT NULL, " +
                 "file_path TEXT NOT NULL, " +
                 "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE)";
+        String createRatingHistoryTable = "CREATE TABLE IF NOT EXISTS rating_history (" +
+                "history_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "skill_id INTEGER, " +
+                "rating INTEGER NOT NULL, " +
+                "update_date TEXT NOT NULL, " +
+                "FOREIGN KEY (skill_id) REFERENCES skills(skill_id) ON DELETE CASCADE)";
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createUsersTable);
             stmt.execute(createSkillsTable);
             stmt.execute(createCertificatesTable);
+            stmt.execute(createRatingHistoryTable);
             System.out.println("Database tables initialized");
         } catch (SQLException e) {
             System.err.println("Error initializing database: " + e.getMessage());

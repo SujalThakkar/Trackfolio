@@ -1,9 +1,11 @@
 package com.trackfolio.gui;
 
 import com.trackfolio.db.CertificateDAO;
+import com.trackfolio.db.RatingHistoryDAO;
 import com.trackfolio.db.SkillDAO;
 import com.trackfolio.db.UserDAO;
 import com.trackfolio.model.Certificate;
+import com.trackfolio.model.RatingHistory;
 import com.trackfolio.model.Skill;
 import com.trackfolio.model.User;
 
@@ -14,6 +16,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.time.LocalDate;
 import java.util.List;
 
 public class DashboardFrame extends JFrame {
@@ -62,7 +65,7 @@ public class DashboardFrame extends JFrame {
         welcomeLabel.setForeground(Color.WHITE);
         navbar.add(welcomeLabel, BorderLayout.WEST);
 
-        // Right: Action Buttons
+        // Right: Find Person and Logout Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
         buttonPanel.setBackground(headerColor);
 
@@ -75,14 +78,6 @@ public class DashboardFrame extends JFrame {
         styleButton(findBtn, buttonColor, buttonHoverColor);
         buttonPanel.add(findBtn);
 
-        JButton addSkillBtn = new JButton("Add Skill");
-        styleButton(addSkillBtn, buttonColor, buttonHoverColor);
-        buttonPanel.add(addSkillBtn);
-
-        JButton addCertBtn = new JButton("Add Certificate");
-        styleButton(addCertBtn, buttonColor, buttonHoverColor);
-        buttonPanel.add(addCertBtn);
-
         JButton logoutBtn = new JButton("Logout");
         styleButton(logoutBtn, new Color(220, 20, 60), new Color(200, 40, 80)); // Red
         buttonPanel.add(logoutBtn);
@@ -90,7 +85,7 @@ public class DashboardFrame extends JFrame {
         navbar.add(buttonPanel, BorderLayout.EAST);
         add(navbar, BorderLayout.NORTH);
 
-        // --- Left: Sidebar (placeholder) ---
+        // --- Left: Sidebar ---
         JPanel sidebar = new JPanel(new GridBagLayout());
         sidebar.setBackground(new Color(240, 240, 240));
         sidebar.setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -101,24 +96,48 @@ public class DashboardFrame extends JFrame {
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 1.0;
+
+        // Add Skill Button
+        JButton addSkillBtn = new JButton("Add Skill");
+        styleButton(addSkillBtn, buttonColor, buttonHoverColor);
+        sidebar.add(addSkillBtn, gbc);
+
+        // Add Certificate Button
+        gbc.gridy++;
+        JButton addCertBtn = new JButton("Add Certificate");
+        styleButton(addCertBtn, buttonColor, buttonHoverColor);
+        sidebar.add(addCertBtn, gbc);
+
+        gbc.gridy++;
         gbc.weighty = 1.0;
-        sidebar.add(new JLabel(""), gbc); // Placeholder
+        sidebar.add(new JLabel(""), gbc); // Spacer
         add(sidebar, BorderLayout.WEST);
 
         // --- Center: Main Content ---
-        JPanel mainPanel = new JPanel(new GridBagLayout());
+        JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(contentColor);
         mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
         JScrollPane scrollPane = new JScrollPane(mainPanel);
         scrollPane.setBorder(null);
         add(scrollPane, BorderLayout.CENTER);
 
-        gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
+        // Left: Skills Section
+        skillsSection = new SkillsSection();
+        JPanel skillsPanel = new JPanel(new BorderLayout());
+        skillsPanel.setBackground(contentColor);
+        skillsPanel.add(skillsSection, BorderLayout.NORTH);
+
+        // Right: Certificates Section
+        certificatesSection = new CertificatesSection();
+        JPanel certsPanel = new JPanel(new BorderLayout());
+        certsPanel.setBackground(contentColor);
+        certsPanel.add(certificatesSection, BorderLayout.NORTH);
+
+        // Add vertical divider
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, skillsPanel, certsPanel);
+        splitPane.setDividerLocation(500); // Adjust as needed
+        splitPane.setBackground(contentColor);
+        splitPane.setBorder(null);
 
         // Summary Box
         JPanel summaryBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
@@ -130,20 +149,8 @@ public class DashboardFrame extends JFrame {
         summaryLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         summaryLabel.setForeground(textColor);
         summaryBox.add(summaryLabel);
-        mainPanel.add(summaryBox, gbc);
-
-        // Skills and Certificates Sections
-        gbc.gridy++;
-        skillsSection = new SkillsSection();
-        mainPanel.add(skillsSection, gbc);
-
-        gbc.gridy++;
-        certificatesSection = new CertificatesSection();
-        mainPanel.add(certificatesSection, gbc);
-
-        gbc.gridy++;
-        gbc.weighty = 1.0;
-        mainPanel.add(new JPanel(), gbc); // Spacer
+        mainPanel.add(summaryBox, BorderLayout.NORTH);
+        mainPanel.add(splitPane, BorderLayout.CENTER);
 
         // Button Actions
         findBtn.addActionListener(e -> findPerson());
@@ -182,9 +189,10 @@ public class DashboardFrame extends JFrame {
             UserDAO userDAO = new UserDAO();
             User found = userDAO.getUserByUsername(username);
             if (found != null) {
-                this.user = found;
-                refreshDashboard();
-                JOptionPane.showMessageDialog(this, "Found " + username + "'s portfolio!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                PortfolioFrame portfolioFrame = new PortfolioFrame(found);
+                portfolioFrame.setVisible(true);
+                portfolioFrame.requestFocus(); // Ensure the new frame gains focus
+                JOptionPane.showMessageDialog(this, "Displaying " + username + "'s portfolio!", "Success", JOptionPane.INFORMATION_MESSAGE);
             } else {
                 JOptionPane.showMessageDialog(this, "User not found!", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -254,7 +262,8 @@ public class DashboardFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, "Error refreshing user data.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            JPanel mainPanel = (JPanel) ((JScrollPane) getContentPane().getComponent(2)).getViewport().getView();
+            JScrollPane scrollPane = (JScrollPane) getContentPane().getComponent(2);
+            JPanel mainPanel = (JPanel) scrollPane.getViewport().getView();
             JPanel summaryBox = (JPanel) mainPanel.getComponent(0);
             summaryBox.removeAll();
             JLabel summaryLabel = new JLabel("Username: " + user.getUsername() +
@@ -315,7 +324,8 @@ public class DashboardFrame extends JFrame {
                 for (Skill s : skills) {
                     JPanel skillPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
                     skillPanel.setBackground(Color.WHITE);
-                    JLabel skillLabel = new JLabel(s.getSkillName() + " (" + s.getLevel() + ")");
+                    String display = s.getSkillName() + " (" + (s.isCoding() ? s.getRating() : s.getLevel()) + ")";
+                    JLabel skillLabel = new JLabel(display);
                     skillLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
                     skillLabel.setForeground(new Color(33, 33, 33));
                     skillPanel.add(skillLabel);
@@ -324,6 +334,19 @@ public class DashboardFrame extends JFrame {
                     deleteBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
                     deleteBtn.addActionListener(e -> deleteSkill(s.getSkillId()));
                     skillPanel.add(deleteBtn);
+                    if (s.isCoding()) {
+                        JButton updateBtn = new JButton("Update Rating");
+                        styleButton(updateBtn, new Color(255, 165, 0), new Color(255, 140, 0)); // Orange
+                        updateBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+                        updateBtn.addActionListener(e -> updateRating(s));
+                        skillPanel.add(updateBtn);
+
+                        JButton viewProgressBtn = new JButton("View Progress");
+                        styleButton(viewProgressBtn, new Color(0, 123, 255), new Color(0, 105, 217)); // Blue
+                        viewProgressBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+                        viewProgressBtn.addActionListener(e -> viewProgress(s.getSkillId()));
+                        skillPanel.add(viewProgressBtn);
+                    }
                     add(skillPanel);
                 }
             }
@@ -350,6 +373,41 @@ public class DashboardFrame extends JFrame {
                 System.err.println("Error deleting skill: " + e.getMessage());
                 e.printStackTrace();
                 JOptionPane.showMessageDialog(this, "Error deleting skill: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        private void updateRating(Skill s) {
+            try {
+                String input = JOptionPane.showInputDialog(this, "Enter new rating:", s.getRating());
+                if (input == null) return;
+                int newRating = Integer.parseInt(input.trim());
+                SkillDAO skillDAO = new SkillDAO();
+                if (skillDAO.updateRating(s.getSkillId(), newRating)) {
+                    RatingHistoryDAO historyDAO = new RatingHistoryDAO();
+                    RatingHistory history = new RatingHistory(s.getSkillId(), newRating, LocalDate.now());
+                    historyDAO.addRatingHistory(history);
+                    JOptionPane.showMessageDialog(this, "Rating updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    refreshDashboard();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Error updating rating.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Invalid rating. Must be an integer.", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                System.err.println("Error updating rating: " + e.getMessage());
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error updating rating: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        private void viewProgress(int skillId) {
+            try {
+                ProgressFrame progressFrame = new ProgressFrame(skillId);
+                progressFrame.setVisible(true);
+            } catch (Exception e) {
+                System.err.println("Error opening ProgressFrame: " + e.getMessage());
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error opening progress: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
