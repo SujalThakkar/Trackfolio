@@ -23,21 +23,9 @@ DB       : SQLite via JDBC
 Graphics : Java 2D
 File I/O : java.nio.file
 
-Folder Layout
--------------
-src/com/trackfolio/
-├─ gui/      → all frames
-├─ model/    → User, Skill, Certificate, RatingHistory
-├─ db/       → DAO classes + DBConnection
-├─ util/     → FileHandler
-└─ Main.java → entry point
-
-certificates/   → created at runtime
-trackfolio.db   → created at runtime
-
 Quick Start
 -----------
-git clone https://github.com/YOUR_USER/trackfolio.git
+git clone https://github.com/SujalThakkar/Trackfolio.git
 cd trackfolio
 javac -d out $(find src -name "*.java")
 java -cp out com.trackfolio.Main
@@ -60,4 +48,4 @@ Resume Highlights
 - Robust file handling
   
 
-Happy coding!
+Happy coding! :)
